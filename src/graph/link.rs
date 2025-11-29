@@ -721,6 +721,14 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             .copied()
             .unwrap_or_else(|| panic!("symbol {symbol} does not exist"));
 
+        // Check if an import to this library already exists for this symbol
+        // to prevent duplicate imports when multiple obj files reference the same API
+        for existing_import in symbol_node.imports().iter() {
+            if std::ptr::eq(existing_import.target(), library) {
+                // Import already exists, skip adding duplicate
+                return Ok(());
+            }
+        }
         if import.architecture != self.machine.into() {
             return Err(LinkGraphAddError::ArchitectureMismatch {
                 expected: self.machine.into(),
