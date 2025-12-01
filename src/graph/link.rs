@@ -745,23 +745,12 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             }
         };
 
-        // Create the import name for dedup checking
         let import_symbol_name = SymbolName::new(
             import_name,
             self.machine == LinkerTargetArch::I386,
         );
 
-        // Check if this library already has an import with the same function name
-        // This ensures "library_name + function_name" uniqueness globally
-        // If it exists, skip adding duplicate - the import symbol will be shared
-        for existing_import in library.imports().iter() {
-            if existing_import.weight().import_name() == &import_symbol_name {
-                // Same library + same import name already exists globally
-                return Ok(());
-            }
-        }
-
-        // This is a new import for this library, create it
+        // Create the import edge - allow duplicates, dedup will happen in build phase
         let import_edge = self.arena.alloc_with(|| {
             Edge::new(
                 symbol_node,
