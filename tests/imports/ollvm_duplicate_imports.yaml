@@ -13,7 +13,7 @@ sections:
         SymbolName:      Sleep
         Type:            IMAGE_REL_AMD64_REL32
       - VirtualAddress:  12
-        SymbolName:      Sleep
+        SymbolName:      __imp_Sleep
         Type:            IMAGE_REL_AMD64_REL32
 symbols:
   - Name:            .text
@@ -34,7 +34,7 @@ symbols:
     SimpleType:      IMAGE_SYM_TYPE_NULL
     ComplexType:     IMAGE_SYM_DTYPE_NULL
     StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
-  - Name:            Sleep
+  - Name:            __imp_Sleep
     Value:           0
     SectionNumber:   0
     SimpleType:      IMAGE_SYM_TYPE_NULL
