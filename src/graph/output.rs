@@ -341,28 +341,61 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
         }
 
         // Reserve library imported symbols
+        // Deduplicate by (library, import_name) to ensure only one symbol table entry per unique import
+        let mut imported_symbols: IndexMap<String, &'arena crate::graph::node::SymbolNode<'arena, 'data>> = IndexMap::new();
+        
         for library in self.library_nodes.values() {
             for import in library.imports() {
-                let symbol = import.source();
+                let import_name_str = import.weight().import_name().as_str();
+                
+                // Create unique key for this import
+                let key = format!("{}${}", library.name(), import_name_str);
+                
+                // Check if we've already processed this (library, import_name) combination
+                let canonical_symbol = imported_symbols.entry(key).or_insert_with(|| {
+                    // First time seeing this import, this symbol becomes the canonical one
+                    import.source()
+                });
+                
+                // If this is the canonical symbol (first occurrence), reserve symbol table index
+                if std::ptr::eq(import.source(), *canonical_symbol) {
+                    let name = self.arena.alloc_str(&format!(
+                        "__imp_{}${}",
+                        library.name().trim_dll_suffix(),
+                        import_name_str
+                    ));
 
-                let name = self.arena.alloc_str(&format!(
-                    "__imp_{}${}",
-                    library.name().trim_dll_suffix(),
-                    import.weight().import_name()
-                ));
+                    let _ = canonical_symbol
+                        .output_name()
+                        .get_or_init(|| coff_writer.add_name(name.as_bytes()));
 
-                let _ = symbol
-                    .output_name()
-                    .get_or_init(|| coff_writer.add_name(name.as_bytes()));
-
-                symbol
-                    .assign_table_index(coff_writer.reserve_symbol_index())
-                    .unwrap_or_else(|v| {
+                    canonical_symbol
+                        .assign_table_index(coff_writer.reserve_symbol_index())
+                        .unwrap_or_else(|v| {
+                            panic!(
+                                "symbol {} already assigned to symbol table index {v}",
+                                canonical_symbol.name().demangle()
+                            )
+                        });
+                } else {
+                    // This is a duplicate import - map it to the canonical symbol's table index
+                    let canonical_index = canonical_symbol.table_index().unwrap_or_else(|| {
                         panic!(
-                            "symbol {} already assigned to symbol table index {v}",
-                            symbol.name().demangle()
+                            "canonical symbol {} for import {} does not have a table index assigned",
+                            canonical_symbol.name().demangle(),
+                            import_name_str
                         )
                     });
+                    
+                    import.source()
+                        .assign_table_index(canonical_index)
+                        .unwrap_or_else(|v| {
+                            panic!(
+                                "symbol {} already assigned to symbol table index {v}",
+                                import.source().name().demangle()
+                            )
+                        });
+                }
             }
         }
 
@@ -574,8 +607,21 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
         }
 
         // Write out library imported symbols
+        // Only write each unique (library, import_name) once
+        let mut written_imports: std::collections::HashSet<String> = std::collections::HashSet::new();
+        
         for library in self.library_nodes.values() {
             for import in library.imports() {
+                let import_name_str = import.weight().import_name().as_str();
+                
+                // Create unique key for this import
+                let key = format!("{}${}", library.name(), import_name_str);
+                
+                // Skip if we've already written this import
+                if !written_imports.insert(key) {
+                    continue;
+                }
+                
                 let symbol = import.source();
                 coff_writer.write_symbol(object::write::coff::Symbol {
                     name: symbol.output_name().get().copied().unwrap_or_else(|| {
