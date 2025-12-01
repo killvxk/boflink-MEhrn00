@@ -64,6 +64,7 @@ fn import_thunks() {
         "Thunk relocation target does not point to import symbol"
     );
 }
+
 #[test]
 fn no_duplicate_imports() {
     let linked = link_yaml!("duplicate_imports.yaml", LinkerTargetArch::Amd64);
@@ -113,5 +114,190 @@ fn multiple_symbols_same_library() {
     assert!(
         !create_thread_import.is_definition(),
         "CreateThread import should not be a definition"
+    );
+}
+
+#[test]
+fn multiple_objs_different_symbols_same_library() {
+    let linked = link_yaml!("multiple_objs_different_symbols.yaml", LinkerTargetArch::Amd64);
+    let parsed: CoffFile =
+        CoffFile::parse(linked.as_slice()).expect("Could not parse linked output");
+
+    // obj1 imports Sleep, obj2 imports CreateThread
+    // Both should be imported from KERNEL32, and each should appear exactly once
+    
+    let sleep_import = parsed
+        .symbol_by_name("__imp_KERNEL32$Sleep")
+        .expect("Sleep import should exist");
+    
+    let create_thread_import = parsed
+        .symbol_by_name("__imp_KERNEL32$CreateThread")
+        .expect("CreateThread import should exist");
+
+    assert!(
+        !sleep_import.is_definition(),
+        "Sleep import should not be a definition"
+    );
+    assert!(
+        !create_thread_import.is_definition(),
+        "CreateThread import should not be a definition"
+    );
+    
+    // Verify no duplicate imports by counting all KERNEL32 imports
+    let kernel32_imports: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name.starts_with("__imp_KERNEL32$") && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+    
+    assert_eq!(
+        kernel32_imports.len(),
+        2,
+        "Expected exactly 2 KERNEL32 imports (Sleep and CreateThread), found {}",
+        kernel32_imports.len()
+    );
+}
+
+#[test]
+fn many_objs_same_import_stress_test() {
+    let linked = link_yaml!("many_objs_same_import.yaml", LinkerTargetArch::Amd64);
+    let parsed: CoffFile =
+        CoffFile::parse(linked.as_slice()).expect("Could not parse linked output");
+
+    // 8 obj files all importing the same Sleep function
+    // Should only result in ONE import symbol
+    let sleep_symbols: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name == "__imp_KERNEL32$Sleep" && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        sleep_symbols.len(),
+        1,
+        "Expected exactly 1 Sleep import symbol even with 8 obj files, found {}",
+        sleep_symbols.len()
+    );
+}
+
+#[test]
+fn mingw_msvcrt_multiple_imports() {
+    let linked = link_yaml!("mingw_msvcrt_imports.yaml", LinkerTargetArch::Amd64);
+    let parsed: CoffFile =
+        CoffFile::parse(linked.as_slice()).expect("Could not parse linked output");
+
+    // Verify malloc is only imported once (obj1 and obj3 both use malloc)
+    let malloc_symbols: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name == "__imp_msvcrt$malloc" && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        malloc_symbols.len(),
+        1,
+        "Expected exactly 1 malloc import from msvcrt, found {}",
+        malloc_symbols.len()
+    );
+
+    // Verify free is imported once
+    let free_symbols: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name == "__imp_msvcrt$free" && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        free_symbols.len(),
+        1,
+        "Expected exactly 1 free import from msvcrt, found {}",
+        free_symbols.len()
+    );
+
+    // Verify printf is imported once
+    let printf_symbols: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name == "__imp_msvcrt$printf" && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        printf_symbols.len(),
+        1,
+        "Expected exactly 1 printf import from msvcrt, found {}",
+        printf_symbols.len()
+    );
+
+    // Verify total msvcrt imports count
+    let all_msvcrt_imports: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name.starts_with("__imp_msvcrt$") && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        all_msvcrt_imports.len(),
+        3,
+        "Expected exactly 3 msvcrt imports (malloc, free, printf), found {}",
+        all_msvcrt_imports.len()
+    );
+}
+
+#[test]
+fn ollvm_duplicate_imports() {
+    // This test simulates OLLVM obfuscation where multiple different symbols 
+    // (func_a, func_b) import the SAME function (Sleep) from the SAME library.
+    // boflink should deduplicate the import entry but ensure both symbols are defined.
+    let linked = link_yaml!("ollvm_duplicate_imports.yaml", LinkerTargetArch::Amd64);
+    let parsed: CoffFile =
+        CoffFile::parse(linked.as_slice()).expect("Could not parse linked output");
+
+    // Verify we have exactly ONE import for Sleep
+    let sleep_imports: Vec<_> = parsed
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                name.contains("Sleep") && !s.is_definition()
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        sleep_imports.len(),
+        1,
+        "Expected exactly 1 Sleep import, found {}",
+        sleep_imports.len()
     );
 }
