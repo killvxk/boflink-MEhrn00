@@ -1,0 +1,51 @@
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_LINE_NUMS_STRIPPED ]
+sections:
+  - Name:            .text
+    Characteristics: [ IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ ]
+    Alignment:       16
+    SectionData:     4883EC2848E80000000048E8000000004883C428C3
+    SizeOfRawData:   22
+    Relocations:
+      - VirtualAddress:  5
+        SymbolName:      func_a
+        Type:            IMAGE_REL_AMD64_REL32
+      - VirtualAddress:  12
+        SymbolName:      func_b
+        Type:            IMAGE_REL_AMD64_REL32
+symbols:
+  - Name:            .text
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length:          22
+      NumberOfRelocations: 2
+      NumberOfLinenumbers: 0
+      CheckSum:        0
+      Number:          0
+  - Name:            func_a
+    Value:           0
+    SectionNumber:   0
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+  - Name:            func_b
+    Value:           0
+    SectionNumber:   0
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+
+--- !IMPORTLIB
+Library: KERNEL32
+Exports:
+  - Symbol: func_a
+    Import: Sleep
+  - Symbol: func_b
+    Import: Sleep
+

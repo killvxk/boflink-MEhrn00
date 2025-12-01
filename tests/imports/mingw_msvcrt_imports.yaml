@@ -1,0 +1,167 @@
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_LINE_NUMS_STRIPPED ]
+sections:
+  - Name:            .text
+    Characteristics: [ IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ ]
+    Alignment:       8
+    SectionData:     4883EC28B940420F0048E8000000004883C428C3
+    SizeOfRawData:   18
+    Relocations:
+      - VirtualAddress:  10
+        SymbolName:      malloc
+        Type:            IMAGE_REL_AMD64_REL32
+symbols:
+  - Name:            .text
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length:          18
+      NumberOfRelocations: 1
+      NumberOfLinenumbers: 0
+      CheckSum:        0
+      Number:          0
+  - Name:            allocate_memory
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+  - Name:            malloc
+    Value:           0
+    SectionNumber:   0
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_LINE_NUMS_STRIPPED ]
+sections:
+  - Name:            .text
+    Characteristics: [ IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ ]
+    Alignment:       8
+    SectionData:     4883EC2848E8000000004883C428C3
+    SizeOfRawData:   14
+    Relocations:
+      - VirtualAddress:  5
+        SymbolName:      free
+        Type:            IMAGE_REL_AMD64_REL32
+symbols:
+  - Name:            .text
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length:          14
+      NumberOfRelocations: 1
+      NumberOfLinenumbers: 0
+      CheckSum:        0
+      Number:          0
+  - Name:            free_memory
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+  - Name:            free
+    Value:           0
+    SectionNumber:   0
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_LINE_NUMS_STRIPPED ]
+sections:
+  - Name:            .text
+    Characteristics: [ IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ ]
+    Alignment:       8
+    SectionData:     4883EC28B940420F0048E8000000004883C428C3
+    SizeOfRawData:   18
+    Relocations:
+      - VirtualAddress:  10
+        SymbolName:      malloc
+        Type:            IMAGE_REL_AMD64_REL32
+symbols:
+  - Name:            .text
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length:          18
+      NumberOfRelocations: 1
+      NumberOfLinenumbers: 0
+      CheckSum:        0
+      Number:          0
+  - Name:            another_allocate
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+  - Name:            malloc
+    Value:           0
+    SectionNumber:   0
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_LINE_NUMS_STRIPPED ]
+sections:
+  - Name:            .text
+    Characteristics: [ IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ ]
+    Alignment:       8
+    SectionData:     4883EC2848E8000000004883C428C3
+    SizeOfRawData:   14
+    Relocations:
+      - VirtualAddress:  5
+        SymbolName:      printf
+        Type:            IMAGE_REL_AMD64_REL32
+symbols:
+  - Name:            .text
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length:          14
+      NumberOfRelocations: 1
+      NumberOfLinenumbers: 0
+      CheckSum:        0
+      Number:          0
+  - Name:            print_message
+    Value:           0
+    SectionNumber:   1
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+  - Name:            printf
+    Value:           0
+    SectionNumber:   0
+    SimpleType:      IMAGE_SYM_TYPE_NULL
+    ComplexType:     IMAGE_SYM_DTYPE_NULL
+    StorageClass:    IMAGE_SYM_CLASS_EXTERNAL
+
+--- !IMPORTLIB
+Library: msvcrt
+Exports:
+  - malloc
+  - free
+  - printf
+
