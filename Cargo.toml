@@ -20,6 +20,7 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.92"
+glob = "0.3.1"
 argfile = "0.2.1"
 bitflags = "2.9.0"
 bumpalo = "3.17.0"
