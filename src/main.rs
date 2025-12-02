@@ -2,7 +2,8 @@ use std::process::Command;
 
 use anyhow::{Result, anyhow, bail};
 use arguments::{ParsedCliArgs, ParsedCliInput};
-use log::{debug, error, info};
+use glob::glob;
+use log::{debug, error, info, warn};
 
 use boflink::{
     libsearch::LibrarySearcher,
@@ -170,10 +171,46 @@ fn run_linker(args: &mut ParsedCliArgs) -> anyhow::Result<()> {
                 whole_input = false;
             }
             ParsedCliInput::File(file_path) => {
-                if whole_input {
-                    linker.add_whole_file_path(file_path);
+                // Check if the path contains glob patterns
+                let path_str = file_path.to_string_lossy();
+                if path_str.contains('*') || path_str.contains('?') || path_str.contains('[') {
+                    // Expand glob pattern
+                    match glob(&path_str) {
+                        Ok(paths) => {
+                            let mut matched_count = 0;
+                            for entry in paths {
+                                match entry {
+                                    Ok(path) => {
+                                        debug!("glob matched: {}", path.display());
+                                        matched_count += 1;
+                                        if whole_input {
+                                            linker.add_whole_file_path(path);
+                                        } else {
+                                            linker.add_file_path(path);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        warn!("glob pattern error for {}: {}", path_str, e);
+                                    }
+                                }
+                            }
+                            if matched_count == 0 {
+                                warn!("glob pattern '{}' did not match any files", path_str);
+                            } else {
+                                debug!("glob pattern '{}' matched {} file(s)", path_str, matched_count);
+                            }
+                        }
+                        Err(e) => {
+                            bail!("invalid glob pattern '{}': {}", path_str, e);
+                        }
+                    }
                 } else {
-                    linker.add_file_path(file_path);
+                    // Regular file path without glob patterns
+                    if whole_input {
+                        linker.add_whole_file_path(file_path);
+                    } else {
+                        linker.add_file_path(file_path);
+                    }
                 }
             }
             ParsedCliInput::Library(library) => {
