@@ -267,6 +267,9 @@ pub struct LinkGraph<'arena, 'data> {
 
     /// Graph arena allocator.
     pub(super) arena: &'arena LinkGraphArena,
+
+    /// The name of the entrypoint symbol.
+    pub(crate) entrypoint: Option<String>,
 }
 
 impl<'arena, 'data> LinkGraph<'arena, 'data> {
@@ -289,6 +292,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             node_count: 0,
             cache: LinkGraphCache::new(),
             arena,
+            entrypoint: None,
         }
     }
 

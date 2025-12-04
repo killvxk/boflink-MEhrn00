@@ -16,7 +16,7 @@ use super::{
     LinkGraphArena, LinkGraphLinkError,
     node::{
         LibraryNode, SectionName, SectionNode, SectionNodeCharacteristics, SectionNodeData,
-        SymbolNodeType,
+        SymbolNode, SymbolNodeType,
     },
 };
 
@@ -89,6 +89,9 @@ pub struct OutputGraph<'arena, 'data> {
 
     /// Graph arena allocator.
     arena: &'arena LinkGraphArena,
+
+    /// The name of the entrypoint symbol.
+    entrypoint: Option<&'arena str>,
 }
 
 impl<'arena, 'data> OutputGraph<'arena, 'data> {
@@ -98,6 +101,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
         api_node: Option<&'arena LibraryNode<'arena, 'data>>,
         library_nodes: IndexMap<&'data str, &'arena LibraryNode<'arena, 'data>>,
         arena: &'arena LinkGraphArena,
+        entrypoint: Option<&'arena str>,
     ) -> OutputGraph<'arena, 'data> {
         Self {
             machine,
@@ -105,6 +109,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
             api_node,
             library_nodes,
             arena,
+            entrypoint,
         }
     }
 
@@ -286,6 +291,16 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                                 )
                             });
                     } else {
+                        // Skip unreferenced symbols unless they are important
+                        // At link time all modules are merged, so if a symbol has no
+                        // references, it's truly unused and can be safely removed.
+                        // We only preserve:
+                        // - Referenced symbols
+                        // - Important symbols (entrypoint, "go", "_go")
+                        if !self.should_keep_symbol(symbol) {
+                            continue;
+                        }
+
                         let _ = symbol.output_name().get_or_init(|| {
                             coff_writer.add_name(symbol.name().as_str().as_bytes())
                         });
@@ -548,6 +563,12 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
 
                     // Skip labels and section symbols
                     if !symbol.is_section_symbol() && !symbol.is_label() {
+                        // Only write symbols that were assigned a table index
+                        // (unreferenced non-important symbols were skipped during reservation)
+                        if symbol.table_index().is_none() {
+                            continue;
+                        }
+
                         coff_writer.write_symbol(object::write::coff::Symbol {
                             name: symbol.output_name().get().copied().unwrap_or_else(|| {
                                 panic!(
@@ -757,5 +778,38 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
         }
 
         Ok(built_coff)
+    }
+
+    /// Returns true if the symbol should be preserved even if unreferenced.
+    /// Important symbols include:
+    /// - The entrypoint symbol (configurable, e.g., "go" or "_go")
+    /// - The "go" and "_go" symbols (legacy fallbacks)
+    fn is_important_symbol(&self, symbol_name: &str) -> bool {
+        // Check if this is the entrypoint
+        if let Some(entrypoint) = self.entrypoint {
+            if symbol_name == entrypoint {
+                return true;
+            }
+        }
+        
+        // Always preserve "go" and "_go" as legacy fallbacks for common entrypoints
+        symbol_name == "go" || symbol_name == "_go"
+    }
+    
+    /// Returns true if the symbol should be kept in the output.
+    /// We keep:
+    /// - Symbols that are referenced
+    /// - Important symbols (entrypoint, go, _go)
+    /// 
+    /// At link time, all modules are merged. If a symbol has no references after
+    /// merging, it's truly unused and can be safely removed.
+    fn should_keep_symbol(&self, symbol: &SymbolNode) -> bool {
+        // Keep referenced symbols
+        if !symbol.is_unreferenced() {
+            return true;
+        }
+        
+        // Keep important symbols even if unreferenced
+        self.is_important_symbol(symbol.name().as_str())
     }
 }

@@ -50,10 +50,12 @@ symbols:
   ComplexType: IMAGE_SYM_DTYPE_FUNCTION
   StorageClass: IMAGE_SYM_CLASS_EXTERNAL
 
-# This COFF has a two '.text' sections with one containing a relocation to the other.
+# This COFF has two '.text' sections with one containing a relocation to the other.
 # There is a relocation to a section symbol that will end up in the same output section.
 # This scenario occurs if compiling with '-ffunction-sections' using GCC.
 # This relocation should be flattened.
+#
+# Additionally, the 'go' function calls the 'other' function to ensure it is preserved
 --- !COFF
 header:
   Machine: IMAGE_FILE_MACHINE_AMD64
@@ -80,6 +82,19 @@ sections:
   Alignment: 16
   SectionData: '554889E5905DC3909090909090909090'
   SizeOfRawData: 16
+- Name: '.text$caller'
+  Characteristics:
+  - IMAGE_SCN_CNT_CODE
+  - IMAGE_SCN_MEM_EXECUTE
+  - IMAGE_SCN_MEM_READ
+  Alignment: 16
+  # Add a function that calls 'other' to ensure it's preserved
+  SectionData: 'E800000000C3'
+  SizeOfRawData: 6
+  Relocations:
+  - VirtualAddress: 1
+    SymbolName: other
+    Type: IMAGE_REL_AMD64_REL32
 symbols:
 - Name: other
   Value: 0
@@ -95,6 +110,12 @@ symbols:
 - Name: source2_function
   Value: 0
   SectionNumber: 1
+  SimpleType: IMAGE_SYM_TYPE_NULL
+  ComplexType: IMAGE_SYM_DTYPE_FUNCTION
+  StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+- Name: caller_function
+  Value: 0
+  SectionNumber: 3
   SimpleType: IMAGE_SYM_TYPE_NULL
   ComplexType: IMAGE_SYM_DTYPE_FUNCTION
   StorageClass: IMAGE_SYM_CLASS_EXTERNAL
@@ -120,6 +141,19 @@ symbols:
   SectionDefinition:
     Length: 7
     NumberOfRelocations: 0
+    NumberOfLinenumbers: 0
+    CheckSum: 0
+    Number: 0
+    Selection: 0
+- Name: '.text$caller'
+  Value: 0
+  SectionNumber: 3
+  SimpleType: IMAGE_SYM_TYPE_NULL
+  ComplexType: IMAGE_SYM_DTYPE_NULL
+  StorageClass: IMAGE_SYM_CLASS_STATIC
+  SectionDefinition:
+    Length: 6
+    NumberOfRelocations: 1
     NumberOfLinenumbers: 0
     CheckSum: 0
     Number: 0

@@ -8,6 +8,115 @@
 # - smallerer
 # - smallest
 
+# Add a go function that references all COMMON symbols so they are preserved
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_RELOCS_STRIPPED ]
+sections:
+  - Name: '.text'
+    Characteristics:
+      - IMAGE_SCN_CNT_CODE
+      - IMAGE_SCN_MEM_EXECUTE
+      - IMAGE_SCN_MEM_READ
+    Alignment: 16
+    # Code that references all 8 common symbols
+    SectionData: '488B05000000004889054800000048890550000000488905580000004889056000000048890568000000488905700000004889057800000048890580000000C3'
+    SizeOfRawData: 70
+    Relocations:
+      - VirtualAddress: 3
+        SymbolName: very_large
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 12
+        SymbolName: large
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 21
+        SymbolName: medium
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 30
+        SymbolName: larger_than_small
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 39
+        SymbolName: small
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 48
+        SymbolName: smaller
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 57
+        SymbolName: smallerer
+        Type: IMAGE_REL_AMD64_REL32
+      - VirtualAddress: 66
+        SymbolName: smallest
+        Type: IMAGE_REL_AMD64_REL32
+symbols:
+  - Name: go
+    Value: 0
+    SectionNumber: 1
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: '.text'
+    Value: 0
+    SectionNumber: 1
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length: 70
+      NumberOfRelocations: 8
+      NumberOfLinenumbers: 0
+      CheckSum: 0
+      Number: 0
+      Selection: 0
+  - Name: very_large
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: large
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: medium
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: larger_than_small
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: small
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: smaller
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: smallerer
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: smallest
+    Value: 0
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+
 --- !COFF
 header:
   Machine: IMAGE_FILE_MACHINE_AMD64

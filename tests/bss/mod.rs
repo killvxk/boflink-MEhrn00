@@ -123,8 +123,10 @@ fn commons_sorted() {
 
     // This is the order the symbols should be laid out. Largest should be at
     // the beginning of the section with smallest at the end.
-    let expected_order: [&str; 8] = [
-        "very_large",
+    // 'go' is at address 0 in .text section, COMMON symbols follow in .bss
+    let expected_order: [&str; 9] = [
+        "go",           // .text section at address 0
+        "very_large",   // .bss section starts here
         "large",
         "medium",
         "larger_than_small",
@@ -137,13 +139,15 @@ fn commons_sorted() {
     assert_eq!(
         expected_order.len(),
         symbols.len(),
-        "The length of the expected symbol order list should match the number of symbols. Test is not setup correctly."
+        "The length of the expected symbol order list should match the number of symbols. Expected {}, found {}: {symbols:#?}",
+        expected_order.len(),
+        symbols.len()
     );
 
     for ((found, _), expected) in symbols.iter().zip(expected_order.iter()) {
         assert_eq!(
             found, expected,
-            "Symbols are not in the correct order: {symbols:#?}"
+            "Symbols are not in the correct order: {symbols:#?}\n"
         );
     }
 }

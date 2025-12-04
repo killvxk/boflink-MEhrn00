@@ -1,0 +1,109 @@
+# Test symbol cleanup: unreferenced symbols should be removed
+# except for important symbols like 'go'
+
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_RELOCS_STRIPPED ]
+sections:
+  - Name: '.text'
+    Characteristics:
+      - IMAGE_SCN_CNT_CODE
+      - IMAGE_SCN_MEM_EXECUTE
+      - IMAGE_SCN_MEM_READ
+    Alignment: 16
+    # Simple function that calls used_function
+    SectionData: 'E800000000C3'
+    SizeOfRawData: 6
+    Relocations:
+      - VirtualAddress: 1
+        SymbolName: used_function
+        Type: IMAGE_REL_AMD64_REL32
+  - Name: '.text$used'
+    Characteristics:
+      - IMAGE_SCN_CNT_CODE
+      - IMAGE_SCN_MEM_EXECUTE
+      - IMAGE_SCN_MEM_READ
+    Alignment: 16
+    SectionData: 'C3'
+    SizeOfRawData: 1
+  - Name: '.text$unused'
+    Characteristics:
+      - IMAGE_SCN_CNT_CODE
+      - IMAGE_SCN_MEM_EXECUTE
+      - IMAGE_SCN_MEM_READ
+    Alignment: 16
+    SectionData: 'C3'
+    SizeOfRawData: 1
+symbols:
+  - Name: go
+    Value: 0
+    SectionNumber: 1
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: '.text'
+    Value: 0
+    SectionNumber: 1
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length: 6
+      NumberOfRelocations: 1
+      NumberOfLinenumbers: 0
+      CheckSum: 0
+      Number: 0
+      Selection: 0
+  - Name: used_function
+    Value: 0
+    SectionNumber: 2
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: '.text$used'
+    Value: 0
+    SectionNumber: 2
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length: 1
+      NumberOfRelocations: 0
+      NumberOfLinenumbers: 0
+      CheckSum: 0
+      Number: 0
+      Selection: 0
+  - Name: unused_function
+    Value: 0
+    SectionNumber: 3
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_FUNCTION
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL
+  - Name: '.text$unused'
+    Value: 0
+    SectionNumber: 3
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_STATIC
+    SectionDefinition:
+      Length: 1
+      NumberOfRelocations: 0
+      NumberOfLinenumbers: 0
+      CheckSum: 0
+      Number: 0
+      Selection: 0
+
+--- !COFF
+header:
+  Machine: IMAGE_FILE_MACHINE_AMD64
+  Characteristics: [ IMAGE_FILE_RELOCS_STRIPPED ]
+sections: []
+symbols:
+  # Unreferenced COMMON symbol should be removed
+  - Name: unused_global_var
+    Value: 8
+    SectionNumber: 0
+    SimpleType: IMAGE_SYM_TYPE_NULL
+    ComplexType: IMAGE_SYM_DTYPE_NULL
+    StorageClass: IMAGE_SYM_CLASS_EXTERNAL

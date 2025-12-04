@@ -810,8 +810,11 @@ impl<L: LibraryFind> LinkImpl for ConfiguredLinker<L> {
         // Build the graph
         let graph_arena = input_processor.spec.alloc_arena();
         let mut graph = input_processor.spec.alloc_graph(&graph_arena, target_arch);
+        
+        // Set the entrypoint on the graph
+        graph.entrypoint = self.entrypoint.clone();
 
-        // Add COFFs
+        //  Add COFFs
         for (coff_path, coff) in &input_processor.coffs {
             for library_name in drectve::parse_defaultlibs_normalized(coff)
                 .into_iter()

@@ -75,3 +75,51 @@ fn no_merge_groups() {
         );
     }
 }
+
+#[test]
+fn symbol_cleanup() {
+    use object::{ObjectSection, ObjectSymbol};
+    
+    let linked = setup_linker!("symbol_cleanup.yaml", LinkerTargetArch::Amd64)
+        .build()
+        .link()
+        .expect("Could not link files");
+        
+    let coff: CoffFile = CoffFile::parse(linked.as_slice()).expect("Could not parse linked COFF");
+
+    // Verify go (important symbol) is preserved
+    assert!(
+        coff.symbol_by_name("go").is_some(),
+        "go symbol should be preserved as it is important"
+    );
+
+    // Verify used_function (referenced) is preserved
+    assert!(
+        coff.symbol_by_name("used_function").is_some(),
+        "used_function symbol should be preserved as it is referenced"
+    );
+
+    // Verify unused_function (unreferenced, not important) is removed
+    assert!(
+        coff.symbol_by_name("unused_function").is_none(),
+        "unused_function symbol should be removed as it is unreferenced"
+    );
+
+    // Verify unused_global_var (unreferenced COMMON symbol) is removed
+    assert!(
+        coff.symbol_by_name("unused_global_var").is_none(),
+        "unused_global_var COMMON symbol should be removed as it is unreferenced"
+    );
+
+    // Count global symbols - should only have go and used_function
+    let global_symbol_count = coff
+        .symbols()
+        .filter(|s| s.is_global())
+        .count();
+
+    assert_eq!(
+        global_symbol_count, 2,
+        "Should have exactly 2 global symbols (go and used_function), found {global_symbol_count}"
+    );
+}
+

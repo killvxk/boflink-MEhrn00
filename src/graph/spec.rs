@@ -119,6 +119,7 @@ impl SpecLinkGraph {
             cache: LinkGraphCache::with_capacity(self.max_symbols, self.max_sections),
             node_count: 0,
             arena,
+            entrypoint: None,
         }
     }
 }

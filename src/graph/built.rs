@@ -87,6 +87,9 @@ pub struct BuiltLinkGraph<'arena, 'data> {
 
     /// Graph arena allocator.
     arena: &'arena LinkGraphArena,
+
+    /// The name of the entrypoint symbol.
+    entrypoint: Option<String>,
 }
 
 impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
@@ -148,6 +151,7 @@ impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
             api_node: link_graph.api_node,
             external_symbols: link_graph.external_symbols,
             arena: link_graph.arena,
+            entrypoint: link_graph.entrypoint,
         }
     }
 
@@ -873,15 +877,19 @@ impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
     }
 
     fn link_final(
-        self,
+        mut self,
         output_sections: Vec<OutputSection<'arena, 'data>>,
     ) -> Result<Vec<u8>, LinkGraphLinkError> {
+        // Allocate entrypoint string in arena before consuming self
+        let entrypoint = self.entrypoint.take().map(|s| self.arena.alloc_str(&s) as &'arena str);
+        
         OutputGraph::new(
             self.machine,
             output_sections,
             self.api_node,
             self.library_nodes,
             self.arena,
+            entrypoint,
         )
         .build_output()
     }
