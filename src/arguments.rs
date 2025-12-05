@@ -125,6 +125,10 @@ pub struct CliOptionArgs {
     /// Print timing information
     #[arg(long)]
     pub print_timing: bool,
+
+    /// Rename duplicate symbols to ensure uniqueness in the symbol table
+    #[arg(long)]
+    pub deduplicate_symbols: bool,
 }
 
 #[derive(Parser, Debug)]

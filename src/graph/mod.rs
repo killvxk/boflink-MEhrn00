@@ -4,6 +4,7 @@ pub mod edge;
 mod link;
 pub mod node;
 mod output;
+mod rename;
 mod spec;
 
 pub use built::*;

@@ -123,3 +123,69 @@ fn symbol_cleanup() {
     );
 }
 
+#[test]
+fn symbol_deduplication() {
+    use object::ObjectSymbol;
+    
+    // Link 3 objects:
+    // 1. Defines global "duplicate" 
+    // 2. Defines global "duplicate" (duplicate definition)
+    // 3. Defines entrypoint "go" that references "duplicate"
+    //
+    // With deduplicate_symbols enabled:
+    // - Duplicate symbol error is suppressed
+    // - First "duplicate" keeps original name
+    // - Second "duplicate" is renamed to "duplicat1"
+    let linked = setup_linker!("symbol_dedup.yaml", LinkerTargetArch::Amd64)
+        .deduplicate_symbols(true)
+        .gc_sections(false)
+        .build()
+        .link()
+        .expect("Could not link files");
+        
+    let coff: CoffFile = CoffFile::parse(linked.as_slice()).expect("Could not parse linked COFF");
+
+    // "go" is the entrypoint - should be preserved as-is
+    assert!(
+        coff.symbol_by_name("go").is_some(),
+        "Entrypoint 'go' should be preserved"
+    );
+
+    // First occurrence of "duplicate" should keep original name
+    let duplicate_original = coff.symbol_by_name("duplicate");
+    assert!(
+        duplicate_original.is_some(),
+        "First 'duplicate' symbol should keep original name"
+    );
+
+    // Second occurrence should be renamed to "duplicat1"
+    let renamed_symbols: Vec<_> = coff
+        .symbols()
+        .filter(|s| {
+            if let Ok(name) = s.name() {
+                // Check for renamed symbol: starts with "duplicat" (prefix) and ends with digit
+                name.starts_with("duplicat") && name.len() == 9 && name != "duplicate"
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    assert_eq!(
+        renamed_symbols.len(),
+        1,
+        "Expected 1 renamed duplicate symbol (e.g. 'duplicat1'), found {}",
+        renamed_symbols.len()
+    );
+
+    // Verify renamed symbol has same length as original
+    if let Some(renamed) = renamed_symbols.first() {
+        let renamed_name = renamed.name().expect("Could not get renamed symbol name");
+        assert_eq!(
+            renamed_name.len(),
+            "duplicate".len(),
+            "Renamed symbol '{}' should have same length as 'duplicate'",
+            renamed_name
+        );
+    }
+}

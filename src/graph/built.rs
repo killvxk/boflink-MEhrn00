@@ -90,10 +90,16 @@ pub struct BuiltLinkGraph<'arena, 'data> {
 
     /// The name of the entrypoint symbol.
     entrypoint: Option<String>,
+
+    /// Rename duplicate symbols to ensure uniqueness in the symbol table.
+    deduplicate_symbols: bool,
 }
 
 impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
-    pub(super) fn new(link_graph: LinkGraph<'arena, 'data>) -> BuiltLinkGraph<'arena, 'data> {
+    pub(super) fn new(
+        link_graph: LinkGraph<'arena, 'data>,
+        deduplicate_symbols: bool,
+    ) -> BuiltLinkGraph<'arena, 'data> {
         // Partition the sections
         let mut partitioned: BTreeMap<SectionCategory<'_>, Vec<&SectionNode<'arena, 'data>>> =
             BTreeMap::new();
@@ -152,6 +158,7 @@ impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
             external_symbols: link_graph.external_symbols,
             arena: link_graph.arena,
             entrypoint: link_graph.entrypoint,
+            deduplicate_symbols,
         }
     }
 
@@ -890,6 +897,7 @@ impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
             self.library_nodes,
             self.arena,
             entrypoint,
+            self.deduplicate_symbols,
         )
         .build_output()
     }

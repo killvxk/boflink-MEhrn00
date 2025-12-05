@@ -506,6 +506,9 @@ pub struct LinkerBuilder<L: LibraryFind + 'static> {
 
     /// List of ignored unresolved symbols.
     pub(super) ignored_unresolved_symbols: HashSet<String>,
+
+    /// Rename duplicate symbols to ensure uniqueness in the symbol table.
+    pub(super) deduplicate_symbols: bool,
 }
 
 impl<L: LibraryFind + 'static> LinkerBuilder<L> {
@@ -525,6 +528,7 @@ impl<L: LibraryFind + 'static> LinkerBuilder<L> {
             print_gc_sections: false,
             warn_unresolved: false,
             ignored_unresolved_symbols: HashSet::new(),
+            deduplicate_symbols: false,
         }
     }
 
@@ -588,6 +592,12 @@ impl<L: LibraryFind + 'static> LinkerBuilder<L> {
     /// Report unresolved symbols as warnings.
     pub fn warn_unresolved(mut self, val: bool) -> Self {
         self.warn_unresolved = val;
+        self
+    }
+
+    /// Rename duplicate symbols to ensure uniqueness in the symbol table.
+    pub fn deduplicate_symbols(mut self, val: bool) -> Self {
+        self.deduplicate_symbols = val;
         self
     }
 
@@ -710,6 +720,9 @@ pub struct ConfiguredLinker<L: LibraryFind> {
 
     /// Output path for dumping the link graph.
     link_graph_output: Option<PathBuf>,
+
+    /// Rename duplicate symbols to ensure uniqueness in the symbol table.
+    deduplicate_symbols: bool,
 }
 
 impl<L: LibraryFind> ConfiguredLinker<L> {
@@ -736,6 +749,7 @@ impl<L: LibraryFind> ConfiguredLinker<L> {
             print_gc_sections: builder.print_gc_sections,
             warn_unresolved: builder.warn_unresolved,
             ignored_unresolved_symbols: builder.ignored_unresolved_symbols,
+            deduplicate_symbols: builder.deduplicate_symbols,
         }
     }
 }
@@ -1042,9 +1056,9 @@ impl<L: LibraryFind> LinkImpl for ConfiguredLinker<L> {
 
         // Finish building the link graph
         let finish_result = if self.warn_unresolved {
-            graph.finish_unresolved(&self.ignored_unresolved_symbols)
+            graph.finish_unresolved(&self.ignored_unresolved_symbols, self.deduplicate_symbols)
         } else {
-            graph.finish(&self.ignored_unresolved_symbols)
+            graph.finish(&self.ignored_unresolved_symbols, self.deduplicate_symbols)
         };
 
         let mut graph = match finish_result {

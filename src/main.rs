@@ -138,7 +138,8 @@ fn run_linker(args: &mut ParsedCliArgs) -> anyhow::Result<()> {
         .print_gc_sections(args.options.print_gc_sections)
         .add_gc_keep_symbols(std::mem::take(&mut args.options.keep_symbol))
         .merge_grouped_sections(args.options.merge_groups)
-        .warn_unresolved(args.options.warn_unresolved_symbols);
+        .warn_unresolved(args.options.warn_unresolved_symbols)
+        .deduplicate_symbols(args.options.deduplicate_symbols);
 
     linker
         .add_ignored_unresolved_symbols(std::mem::take(&mut args.options.ignore_unresolved_symbol));

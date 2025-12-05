@@ -773,6 +773,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
     pub fn finish(
         self,
         ignored_unresolved: &HashSet<String>,
+        deduplicate_symbols: bool,
     ) -> Result<BuiltLinkGraph<'arena, 'data>, Vec<SymbolError<'arena, 'data>>> {
         let mut symbol_errors = Vec::new();
 
@@ -782,7 +783,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
                 && !ignored_unresolved.contains(symbol.name().as_str())
             {
                 symbol_errors.push(SymbolError::Undefined(UndefinedSymbolError(symbol)));
-            } else if symbol.is_duplicate() {
+            } else if symbol.is_duplicate() && !deduplicate_symbols {
                 symbol_errors.push(SymbolError::Duplicate(DuplicateSymbolError(symbol)));
             } else if symbol.is_multiply_defined() {
                 symbol_errors.push(SymbolError::MultiplyDefined(MultiplyDefinedSymbolError(
@@ -795,7 +796,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             return Err(symbol_errors);
         }
 
-        Ok(BuiltLinkGraph::new(self))
+        Ok(BuiltLinkGraph::new(self, deduplicate_symbols))
     }
 
     /// Finishes building the link graph and warns on unresolved symbols.
@@ -805,6 +806,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
     pub fn finish_unresolved(
         self,
         ignored_unresolved: &HashSet<String>,
+        deduplicate_symbols: bool,
     ) -> Result<BuiltLinkGraph<'arena, 'data>, Vec<SymbolError<'arena, 'data>>> {
         let mut symbol_errors = Vec::new();
         let mut unresolved_symbols = Vec::new();
@@ -815,7 +817,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
                 && !ignored_unresolved.contains(symbol.name().as_str())
             {
                 unresolved_symbols.push(SymbolError::Undefined(UndefinedSymbolError(symbol)));
-            } else if symbol.is_duplicate() {
+            } else if symbol.is_duplicate() && !deduplicate_symbols {
                 symbol_errors.push(SymbolError::Duplicate(DuplicateSymbolError(symbol)));
             } else if symbol.is_multiply_defined() {
                 symbol_errors.push(SymbolError::MultiplyDefined(MultiplyDefinedSymbolError(
@@ -851,7 +853,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             return Err(symbol_errors);
         }
 
-        Ok(BuiltLinkGraph::new(self))
+        Ok(BuiltLinkGraph::new(self, deduplicate_symbols))
     }
 
     /// Writes out the GraphViz dot representation of this graph to the specified

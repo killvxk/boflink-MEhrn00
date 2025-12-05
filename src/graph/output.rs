@@ -18,6 +18,7 @@ use super::{
         LibraryNode, SectionName, SectionNode, SectionNodeCharacteristics, SectionNodeData,
         SymbolNode, SymbolNodeType,
     },
+    rename::SymbolNameDeduplicator,
 };
 
 /// An output section for the [`OutputGraph`].
@@ -92,6 +93,9 @@ pub struct OutputGraph<'arena, 'data> {
 
     /// The name of the entrypoint symbol.
     entrypoint: Option<&'arena str>,
+
+    /// Rename duplicate symbols to ensure uniqueness in the symbol table.
+    deduplicate_symbols: bool,
 }
 
 impl<'arena, 'data> OutputGraph<'arena, 'data> {
@@ -102,6 +106,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
         library_nodes: IndexMap<&'data str, &'arena LibraryNode<'arena, 'data>>,
         arena: &'arena LinkGraphArena,
         entrypoint: Option<&'arena str>,
+        deduplicate_symbols: bool,
     ) -> OutputGraph<'arena, 'data> {
         Self {
             machine,
@@ -110,6 +115,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
             library_nodes,
             arena,
             entrypoint,
+            deduplicate_symbols,
         }
     }
 
@@ -258,6 +264,16 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
             output_section.pointer_to_relocations = coff_writer.reserve_relocations(reloc_count);
         }
 
+        // Symbol name deduplicator for ensuring unique symbol names
+        let mut symbol_deduplicator = SymbolNameDeduplicator::new();
+        
+        // Track per-definition symbol table entries for deduplicated symbols
+        // Key: pointer to definition edge, Value: (coff_name, table_index)
+        let mut definition_entries: std::collections::HashMap<
+            usize, 
+            (object::write::coff::Name, u32)
+        > = std::collections::HashMap::new();
+
         // Reserve symbols defined in sections
         for section in self.output_sections.iter() {
             // Reserve the section symbol
@@ -301,19 +317,54 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                             continue;
                         }
 
-                        let _ = symbol.output_name().get_or_init(|| {
-                            coff_writer.add_name(symbol.name().as_str().as_bytes())
-                        });
+                        // Use deduplication for non-import, non-entrypoint symbols
+                        let original_name = symbol.name().as_str();
 
-                        // Reserve an index for this symbol
-                        symbol
-                            .assign_table_index(coff_writer.reserve_symbol_index())
-                            .unwrap_or_else(|v| {
-                                panic!(
-                                    "symbol {} already assigned to symbol table index {v}",
-                                    symbol.name().demangle()
-                                )
-                            });
+                        let output_name_str: &str = if self.deduplicate_symbols {
+                            let is_protected = self.is_important_symbol(original_name) 
+                                || !symbol.imports().is_empty();
+                            
+                            if is_protected {
+                                // Protected symbols keep their original name
+                                original_name
+                            } else {
+                                // Non-protected symbols get deduplicated
+                                let (deduped_name, _is_first) = symbol_deduplicator.deduplicate(original_name);
+                                // Only allocate in arena if the name was actually changed
+                                if deduped_name != original_name {
+                                    self.arena.alloc_str(&deduped_name)
+                                } else {
+                                    original_name
+                                }
+                            }
+                        } else {
+                            original_name
+                        };
+
+                        // Check if this symbol already has an assigned index
+                        // This happens with duplicate symbols that have multiple definitions
+                        if symbol.table_index().is_some() && self.deduplicate_symbols {
+                            // For deduplicated symbols with multiple definitions,
+                            // we need a separate entry for each definition
+                            let coff_name = coff_writer.add_name(output_name_str.as_bytes());
+                            let table_index = coff_writer.reserve_symbol_index();
+                            let def_ptr = definition as *const _ as usize;
+                            definition_entries.insert(def_ptr, (coff_name, table_index));
+                        } else {
+                            // Add name to COFF writer before get_or_init to avoid closure borrow issues
+                            let coff_name = coff_writer.add_name(output_name_str.as_bytes());
+                            let _ = symbol.output_name().get_or_init(|| coff_name);
+
+                            // Reserve an index for this symbol
+                            symbol
+                                .assign_table_index(coff_writer.reserve_symbol_index())
+                                .unwrap_or_else(|v| {
+                                    panic!(
+                                        "symbol {} already assigned to symbol table index {v}",
+                                        symbol.name().demangle()
+                                    )
+                                });
+                        }
                     }
                 }
             }
@@ -563,28 +614,45 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
 
                     // Skip labels and section symbols
                     if !symbol.is_section_symbol() && !symbol.is_label() {
-                        // Only write symbols that were assigned a table index
-                        // (unreferenced non-important symbols were skipped during reservation)
-                        if symbol.table_index().is_none() {
-                            continue;
-                        }
+                        // Check if this definition has a dedicated entry (for deduplicated symbols)
+                        let def_ptr = definition as *const _ as usize;
+                        if let Some((name, _table_index)) = definition_entries.get(&def_ptr) {
+                            // Write the deduplicated symbol with its unique name
+                            coff_writer.write_symbol(object::write::coff::Symbol {
+                                name: *name,
+                                value: definition.weight().address() + section_node.virtual_address(),
+                                section_number: (section_index + 1).try_into().unwrap(),
+                                typ: match symbol.typ() {
+                                    SymbolNodeType::Value(typ) => typ,
+                                    _ => unreachable!(),
+                                },
+                                storage_class: symbol.storage_class().into(),
+                                number_of_aux_symbols: 0,
+                            });
+                        } else {
+                            // Only write symbols that were assigned a table index
+                            // (unreferenced non-important symbols were skipped during reservation)
+                            if symbol.table_index().is_none() {
+                                continue;
+                            }
 
-                        coff_writer.write_symbol(object::write::coff::Symbol {
-                            name: symbol.output_name().get().copied().unwrap_or_else(|| {
-                                panic!(
-                                    "symbol {} never had the name reserved in the output COFF",
-                                    symbol.name().demangle()
-                                )
-                            }),
-                            value: definition.weight().address() + section_node.virtual_address(),
-                            section_number: (section_index + 1).try_into().unwrap(),
-                            typ: match symbol.typ() {
-                                SymbolNodeType::Value(typ) => typ,
-                                _ => unreachable!(),
-                            },
-                            storage_class: symbol.storage_class().into(),
-                            number_of_aux_symbols: 0,
-                        });
+                            coff_writer.write_symbol(object::write::coff::Symbol {
+                                name: symbol.output_name().get().copied().unwrap_or_else(|| {
+                                    panic!(
+                                        "symbol {} never had the name reserved in the output COFF",
+                                        symbol.name().demangle()
+                                    )
+                                }),
+                                value: definition.weight().address() + section_node.virtual_address(),
+                                section_number: (section_index + 1).try_into().unwrap(),
+                                typ: match symbol.typ() {
+                                    SymbolNodeType::Value(typ) => typ,
+                                    _ => unreachable!(),
+                                },
+                                storage_class: symbol.storage_class().into(),
+                                number_of_aux_symbols: 0,
+                            });
+                        }
                     }
                 }
             }
