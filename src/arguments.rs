@@ -360,6 +360,9 @@ pub fn parse_arguments() -> anyhow::Result<ParsedCliArgs> {
             println!("boflink {version}");
         }
 
+        // Log command line for debugging. Uses to_string_lossy() which replaces
+        // invalid UTF-8 sequences with U+FFFD replacement character. This is
+        // acceptable for logging purposes as non-UTF-8 paths are rare in practice.
         let commandline_str = commandline
             .iter()
             .map(|s| s.to_string_lossy())
@@ -373,9 +376,8 @@ pub fn parse_arguments() -> anyhow::Result<ParsedCliArgs> {
             None => return arg,
         };
 
-        if arg_str.chars().next().is_some_and(|c| c == '-')
-            && arg_str.chars().nth(1).is_some_and(|c| c != '-')
-        {
+        // Check for single-dash legacy flags (e.g., -gc-sections) and remap to double-dash
+        if arg_str.starts_with('-') && !arg_str.starts_with("--") {
             if let Some(unprefixed) = arg_str.strip_prefix('-') {
                 if legacy_flags.contains(&unprefixed) {
                     let mut remapped = OsString::from("-");

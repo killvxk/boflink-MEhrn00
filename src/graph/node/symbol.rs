@@ -271,9 +271,12 @@ impl<'arena, 'data> SymbolNode<'arena, 'data> {
                     samesize = true;
                 }
                 ComdatSelection::ExactMatch => {
-                    // TODO: This will just check if the section data matches.
-                    // Also need to check that the relocations and definitions
-                    // match.
+                    // TODO(correctness): ExactMatch COMDAT validation is incomplete.
+                    // Current implementation only compares section data checksums.
+                    // Per COFF spec, ExactMatch should also verify:
+                    // - Relocations match between sections
+                    // - Symbol definitions match
+                    // See: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections
                     checksums.insert(definition.target().checksum());
                     exact_match = true;
                 }

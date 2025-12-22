@@ -28,12 +28,20 @@ pub enum LinkArchiveMemberVariant<'a> {
 }
 
 /// The archive symbol map iterator with caching.
+///
+/// Note: This cache iterates through symbols lazily. Once the iterator is exhausted,
+/// only symbols that were encountered during iteration will be in the cache.
+/// Symbols are cached in the order they are encountered during searches.
 struct CachedSymbolMap<'a> {
     cache: IndexMap<&'a str, ArchiveOffset>,
     iter: Option<ArchiveSymbolIterator<'a>>,
 }
 
 impl CachedSymbolMap<'_> {
+    /// Find a symbol in the archive, using cache or iterating through remaining symbols.
+    ///
+    /// Note: The iterator is consumed progressively. If a symbol is not found,
+    /// subsequent searches will only check the cache and remaining (unvisited) symbols.
     fn find_symbol(&mut self, symbol: &str) -> Option<ArchiveOffset> {
         if let Some(found) = self.cache.get(symbol).copied() {
             return Some(found);
@@ -123,8 +131,8 @@ impl<'a> LinkArchive<'a> {
         LinkArchiveSymbolsIterator {
             archive: self,
             iter: self.archive_file.symbols()
-                .unwrap_or_else(|e| unreachable!("Archive file symbol map validity should have been checked in LinkArchive::parse ({e:?})"))
-                .unwrap_or_else(|| unreachable!("Archive file symbol map existence should have been checked in LinkArchive::parse")),
+                .expect("archive file symbol map should be valid (checked in LinkArchive::parse)")
+                .expect("archive file symbol map should exist (checked in LinkArchive::parse)"),
         }
     }
 

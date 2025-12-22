@@ -566,11 +566,11 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             let graph_symbol = self
                 .cache
                 .get_symbol(symbol_idx)
-                .unwrap_or_else(|| unreachable!());
+                .expect("weak external symbol should exist in cache");
 
             let weak_aux = symbol_table
                 .aux_weak_external(symbol_idx)
-                .unwrap_or_else(|_| unreachable!());
+                .expect("weak external symbol should have aux data");
 
             let default_symbol = self
                 .cache
@@ -603,7 +603,7 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
             let graph_section = self
                 .cache
                 .get_section(section.index())
-                .unwrap_or_else(|| unreachable!());
+                .expect("section should exist in cache");
 
             for reloc in section.coff_relocations()? {
                 let target_symbol = self.cache.get_symbol(reloc.symbol()).ok_or_else(|| {
@@ -719,24 +719,25 @@ impl<'arena, 'data> LinkGraph<'arena, 'data> {
         library: &'arena LibraryNode<'arena, 'data>,
         import: &ImportMember<'data>,
     ) -> Result<(), LinkGraphAddError> {
+        // Check architecture FIRST before any other processing
+        if import.architecture != self.machine.into() {
+            return Err(LinkGraphAddError::ArchitectureMismatch {
+                expected: self.machine.into(),
+                found: import.architecture,
+            });
+        }
+
         let symbol_node = self
             .external_symbols
             .get(symbol)
             .copied()
-            .unwrap_or_else(|| panic!("symbol {symbol} does not exist"));
+            .expect("symbol should exist in external_symbols");
 
         for existing_import in symbol_node.imports().iter() {
             if std::ptr::eq(existing_import.target(), library) {
                 // Import already exists, skip adding duplicate
                 return Ok(());
             }
-        }
-
-        if import.architecture != self.machine.into() {
-            return Err(LinkGraphAddError::ArchitectureMismatch {
-                expected: self.machine.into(),
-                found: import.architecture,
-            });
         }
 
         let import_name = match import.import {

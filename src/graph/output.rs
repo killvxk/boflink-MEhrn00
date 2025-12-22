@@ -344,11 +344,19 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                             original_name
                         };
 
-                        // Check if this symbol already has an assigned index
-                        // This happens with duplicate symbols that have multiple definitions
+                        // Handle symbol table index assignment for deduplicated symbols.
+                        //
+                        // When --deduplicate-symbols is enabled and a symbol already has
+                        // an assigned table index, it means we're processing a duplicate
+                        // definition of the same symbol. In this case, we create a separate
+                        // symbol table entry for each definition to ensure all definitions
+                        // are properly represented in the output.
+                        //
+                        // Without deduplication, if a symbol already has an index, we skip
+                        // re-assignment (the else branch uses get_or_init which is idempotent).
                         if symbol.table_index().is_some() && self.deduplicate_symbols {
-                            // For deduplicated symbols with multiple definitions,
-                            // we need a separate entry for each definition
+                            // Create a new symbol table entry for this duplicate definition.
+                            // Uses definition pointer as key to track per-definition entries.
                             let coff_name = coff_writer.add_name(output_name_str.as_bytes());
                             let table_index = coff_writer.reserve_symbol_index();
                             let def_ptr = definition as *const _ as usize;
@@ -373,7 +381,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
             }
         }
 
-        // Reserve API imported symbols
+        // Reserve API imported symbols (Beacon API only - MSVCRT goes through library imports)
         if let Some(api_node) = self.api_node {
             for import in api_node.imports() {
                 let symbol = import.source();
@@ -767,6 +775,8 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                     let reloc = reloc_edge.weight();
 
                     // Return an error if the relocation is out of bounds.
+                    // Note: reloc.address() is the offset within the merged section,
+                    // while reloc.virtual_address is the original offset in the source section.
                     if reloc.virtual_address + 4 > section_node.data().len() as u32 {
                         return Err(LinkGraphLinkError::RelocationBounds {
                             coff_name: section_node.coff().to_string(),
@@ -785,11 +795,13 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
 
                     let reloc_data: [u8; 4] = section_data
                         .get(reloc.address() as usize..reloc.address() as usize + 4)
-                        .map(|data| data.try_into().unwrap_or_else(|_| unreachable!()))
+                        .map(|data| data.try_into().expect("slice should be exactly 4 bytes"))
                         .unwrap_or_else(|| {
-                            unreachable!(
-                                "relocation in section '{}' is out of bounds",
-                                section_node.name()
+                            panic!(
+                                "relocation in section '{}' at address {} is out of bounds (section size: {})",
+                                section_node.name(),
+                                reloc.address(),
+                                section_data.len()
                             )
                         });
 
@@ -823,7 +835,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                         let symbol_addr =
                             symbol_definition.weight().address() + target_section.virtual_address();
 
-                        let reloc_val = u32::from_be_bytes(reloc_data);
+                        let reloc_val = u32::from_le_bytes(reloc_data);
                         let delta = symbol_addr.wrapping_sub(reloc_addr + 4);
                         reloc_val.wrapping_add(delta)
                     } else if target_symbol.is_label() {

@@ -645,9 +645,14 @@ bitflags::bitflags! {
 }
 
 impl SectionNodeCharacteristics {
-    /// Returns the alignment value if it exists
+    /// Returns the alignment value if it exists.
+    ///
+    /// The alignment is encoded as log2(alignment)+1 in bits 20-23.
+    /// Returns None if alignment bits are 0, otherwise returns 2^(n-1) where n is the encoded value.
     pub fn alignment(&self) -> Option<usize> {
-        (self.0 & (0xfu32 << 20) != 0).then(|| 2usize.pow(((self.0 >> 20) & 0xf) - 1))
+        let align_val = (self.0 >> 20) & 0xf;
+        // align_val of 0 means no alignment specified
+        (align_val != 0).then(|| 2usize.pow(align_val - 1))
     }
 
     /// Returns a new [`SectionNodeCharacteristics`] without the alignment
@@ -658,9 +663,13 @@ impl SectionNodeCharacteristics {
 
     /// Set the characteristic alignment flag to the specified value.
     ///
-    /// The value must be a multiple of two or this has no effect.
+    /// The value must be a power of two (including 1) for this to have any effect.
+    /// Values that are not powers of two are silently ignored.
     pub fn set_alignment(&mut self, val: u32) {
-        if val == 1 || (val != 0 && (val & (val - 1)) == 0) {
+        // Check if val is a power of two: val == 1 or (val != 0 && val is power of 2)
+        let is_power_of_two = val == 1 || (val != 0 && (val & (val - 1)) == 0);
+        if is_power_of_two {
+            // Encode as log2(val) + 1, shifted to alignment bits position
             self.insert(SectionNodeCharacteristics::from_bits_truncate(
                 (val.ilog2() + 1) << SECTION_ALIGN_SHIFT,
             ));

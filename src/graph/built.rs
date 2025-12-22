@@ -446,7 +446,8 @@ impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
                 thunk_import_symbol.references().push_back(relocation_edge);
 
                 // Unlink the import edge from the existing symbol
-                let removed_import_edge = symbol.imports().pop_front().unwrap();
+                let removed_import_edge = symbol.imports().pop_front()
+                    .expect("import edge should exist for symbol with imports");
                 // Set the source node for the edge to the new thunk import
                 // symbol
                 removed_import_edge.replace_source(thunk_import_symbol);
@@ -513,11 +514,15 @@ impl<'arena, 'data> BuiltLinkGraph<'arena, 'data> {
                     }
                 }
             } else if selection == ComdatSelection::Associative {
-                // Associative COMDAT symbols are handled by traversing the
-                // root of the COMDAT chain.
+                // Associative COMDAT sections are handled when processing their
+                // root section below. Skip the symbol here since it will be
+                // processed via associative_bfs() from its root.
                 continue;
             }
 
+            // Process definitions and their associative sections.
+            // This handles both the root COMDAT section and any sections
+            // associated with it via ComdatSelection::Associative.
             for definition in symbol.definitions() {
                 let root_section = definition.target();
 

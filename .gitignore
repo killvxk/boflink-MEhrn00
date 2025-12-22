@@ -11,3 +11,4 @@ Cargo.lock
 *.dll
 *.exe
 *.exp
+.claude/settings.local.json

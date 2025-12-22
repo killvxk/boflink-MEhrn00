@@ -51,7 +51,7 @@ pub enum ImportType {
 impl From<object::read::coff::ImportType> for ImportType {
     fn from(value: object::read::coff::ImportType) -> Self {
         match value {
-            object::coff::ImportType::Code => Self::Const,
+            object::coff::ImportType::Code => Self::Code,
             object::coff::ImportType::Data => Self::Data,
             object::coff::ImportType::Const => Self::Const,
         }

@@ -22,8 +22,11 @@ pub enum DirectiveParserError {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("could not parse .drectve section")]
-pub struct DirectiveParseError;
+#[error("could not parse .drectve section at offset {offset}")]
+pub struct DirectiveParseError {
+    /// Byte offset within the .drectve section where parsing failed
+    pub offset: usize,
+}
 
 pub struct DirectiveParser<'a> {
     offset: usize,
@@ -37,12 +40,15 @@ impl<'a> DirectiveParser<'a> {
     }
 
     pub fn with_offset(offset: usize, data: &'a str) -> DirectiveParser<'a> {
+        // Use char_indices() to get byte offsets directly, ensuring correct
+        // string slicing for multi-byte UTF-8 characters. Note: currently only
+        // ASCII space ' ' is checked, so char count == byte count, but using
+        // char_indices() is more robust and idiomatic.
         let whitespace_count = data
-            .chars()
-            .enumerate()
+            .char_indices()
             .find(|(_, c)| *c != ' ')
-            .map(|(offset, _)| offset)
-            .unwrap_or_default();
+            .map(|(idx, _)| idx)
+            .unwrap_or(data.len());
 
         Self {
             offset: offset + whitespace_count,
@@ -66,7 +72,7 @@ impl<'a> DirectiveParser<'a> {
                 self.data = remaining;
                 Some(Ok((flag, value)))
             }
-            Err(_) => Some(Err(DirectiveParseError)),
+            Err(_) => Some(Err(DirectiveParseError { offset: self.offset })),
         }
     }
 }
@@ -86,6 +92,9 @@ fn cmdline_flag(input: &str) -> nom::IResult<&str, &str> {
     .parse(input)
 }
 
+/// Parses a quoted value between double quotes.
+/// Note: Escape sequences within quoted values are NOT supported.
+/// The value "foo\"bar" would fail to parse correctly.
 fn quoted_value(input: &str) -> nom::IResult<&str, &str> {
     delimited(tag("\""), is_not("\""), tag("\"")).parse(input)
 }
@@ -135,6 +144,8 @@ pub fn parse_linker_directives<'a>(
 
     let section_data = drectve_section.data()?;
 
+    // Track byte offset for error reporting. If a UTF-8 BOM is present,
+    // skip it and start parsing at offset 3 (BOM is 3 bytes: EF BB BF).
     let mut offset = 0;
     let section_data = if section_data
         .get(..3)
@@ -166,6 +177,16 @@ pub fn parse_defaultlibs<'a>(coff: &CoffFile<'a>) -> Option<impl Iterator<Item =
 }
 
 /// Parses the .drectve section "/DEFAULTLIB" values but normalizes the result.
+///
+/// Normalization strips the ".lib" suffix if present (case-insensitive).
+/// For example: "kernel32.lib" -> "kernel32", "KERNEL32.LIB" -> "KERNEL32"
+///
+/// Edge cases:
+/// - Libraries with multiple dots keep the last segment stripped:
+///   "foo.bar.lib" -> "foo.bar"
+/// - Libraries without ".lib" suffix are returned unchanged:
+///   "mylib" -> "mylib", "my.dll" -> "my.dll"
+/// - Empty library names or names like ".lib" return "" (the prefix before ".lib")
 pub fn parse_defaultlibs_normalized<'a>(
     coff: &CoffFile<'a>,
 ) -> Option<impl Iterator<Item = &'a str>> {
