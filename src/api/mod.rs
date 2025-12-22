@@ -1,4 +1,5 @@
 mod beaconapi;
+mod msvcrt;
 
 use std::{collections::HashMap, path::Path};
 
@@ -28,11 +29,14 @@ pub struct ApiSymbols<'a> {
 }
 
 impl<'a> ApiSymbols<'a> {
-    /// Creates a new [`ApiSymbols`] but using the Beacon API symbols.
+    /// Creates a new [`ApiSymbols`] but using the Beacon API symbols and MSVCRT CRT symbols.
     pub fn beacon(architecture: LinkerTargetArch) -> ApiSymbols<'a> {
+        let mut symbols = beaconapi::symbols(architecture);
+        // Add MSVCRT CRT symbols for functions like memset, memcpy, etc.
+        symbols.extend(msvcrt::symbols(architecture));
         ApiSymbols {
             archive_path: Path::new("BEACONAPI"),
-            symbols: beaconapi::symbols(architecture),
+            symbols,
         }
     }
 

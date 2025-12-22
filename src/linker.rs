@@ -915,7 +915,17 @@ impl<L: LibraryFind> LinkImpl for ConfiguredLinker<L> {
             'symbol: while let Some(symbol_name) = symbol_search_buffer.pop_front() {
                 // Try resolving it as an API import first
                 if let Some(api_import) = api_symbols.get(symbol_name) {
-                    if let Err(e) = graph.add_api_import(symbol_name, api_import) {
+                    // Use add_api_import for Beacon API (keeps original symbol name)
+                    // Use add_library_import for others like MSVCRT (uses __imp_DLL$func format)
+                    let result = if api_import.dll == "Beacon API" {
+                        graph.add_api_import(symbol_name, api_import)
+                    } else {
+                        // For MSVCRT and other CRT imports, use library import path
+                        // This will generate __imp_MSVCRT$function style symbols
+                        graph.add_library_import(symbol_name, api_import)
+                    };
+
+                    if let Err(e) = result {
                         setup_errors.push(LinkerSetupError::Path(LinkerSetupPathError::nomember(
                             api_symbols.archive_path(),
                             e,
