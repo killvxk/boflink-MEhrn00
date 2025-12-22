@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 use log::debug;
 use object::{
     pe::{
-        IMAGE_FILE_LINE_NUMS_STRIPPED, IMAGE_SYM_CLASS_EXTERNAL, IMAGE_SYM_CLASS_STATIC,
-        IMAGE_SYM_TYPE_NULL,
+        IMAGE_FILE_LINE_NUMS_STRIPPED, IMAGE_REL_I386_DIR32, IMAGE_SYM_CLASS_EXTERNAL,
+        IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_TYPE_NULL,
     },
     write::coff::{Relocation, Writer},
 };
@@ -205,6 +205,9 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                             .iter()
                             .any(|section| std::ptr::eq(*section, target_section))
                         {
+                            reloc_count += 1;
+                        } else if reloc.weight().typ() == IMAGE_REL_I386_DIR32 {
+                            // For x86 absolute addressing, count the relocation even within same section
                             reloc_count += 1;
                         }
 
@@ -561,7 +564,13 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                             .iter()
                             .any(|section| std::ptr::eq(*section, definition.target()))
                         {
-                            continue;
+                            // For x86 absolute addressing, the final address depends on load
+                            // location, so we must preserve the relocation. For relative
+                            // addressing like IMAGE_REL_AMD64_REL32, we can skip the relocation
+                            // as it's resolved internally.
+                            if reloc.weight().typ() != IMAGE_REL_I386_DIR32 {
+                                continue;
+                            }
                         }
 
                         linked_symbol = definition.source();
@@ -803,9 +812,12 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
                                 address: reloc.address(),
                             })?
                     } else if section_node.name().group_name() == target_section.name().group_name()
+                        && reloc.typ() != IMAGE_REL_I386_DIR32
                     {
                         // Relocation targets a symbol defined in the same section.
                         // Apply the relocation to the symbol address.
+                        // Exception: For x86 absolute addressing (IMAGE_REL_I386_DIR32), skip this
+                        // fixup and preserve the symbolic reference.
 
                         let reloc_addr = reloc.address() + section_node.virtual_address();
                         let symbol_addr =
