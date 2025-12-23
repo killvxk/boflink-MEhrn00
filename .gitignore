@@ -13,3 +13,5 @@ Cargo.lock
 *.exp
 .claude/settings.local.json
 docs/memory
+nul
+msvcrt_exports.txt
