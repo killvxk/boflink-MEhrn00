@@ -885,7 +885,7 @@ impl<'arena, 'data> OutputGraph<'arena, 'data> {
         }
         
         // Always preserve "go" and "_go" as legacy fallbacks for common entrypoints
-        symbol_name == "go" || symbol_name == "_go"
+        symbol_name == "go" || symbol_name == "_go" || symbol_name.starts_with("_go@")
     }
     
     /// Returns true if the symbol should be kept in the output.
